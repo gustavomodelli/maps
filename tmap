@@ -1,0 +1,43 @@
+library(tidyverse)
+library(leaflet)
+library(tmap)
+
+##https://geocompr.robinlovelace.net/adv-map.html
+
+##Package tm
+data("World")
+
+tm_shape(World) + tm_fill(col = 'area')+
+  tm_borders()+
+  tm_bubbles(col = 'continent')
+
+tm_shape(World) + tm_fill(col = 'pop_est_dens')+
+  tm_borders()
+
+##brazil
+brazil <- World %>% 
+  filter(name == 'Brazil')
+
+tm_shape(brazil) + tm_fill()+
+  tm_borders()
+
+##combine data with covid
+data1 <- read_csv('train.csv')
+
+data1 <- data1 %>% 
+  group_by(Country_Region) %>% 
+  summarise(total_cases = max(ConfirmedCases))
+
+data2 <- World
+setdiff(unique(data1$Country_Region), unique(data2$name))
+
+data1$Country_Region[data1$Country_Region == 'US'] <- 'United States'
+data1$Country_Region[data1$Country_Region == 'South, Korea'] <- 'Korea'
+
+data2 <- data2 %>% 
+  rename(Country_Region = name)
+
+data2 <- data2 %>% left_join(data1)
+
+tm_shape(data2) + tm_fill(col = 'total_cases')+
+  tm_borders()
