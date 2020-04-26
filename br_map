@@ -1,0 +1,77 @@
+library(tidyverse)
+library(leaflet)
+library(tmap)
+library(brazilmaps)
+
+##https://geocompr.robinlovelace.net/adv-map.html
+
+##Package tm
+data("World")
+
+tm_shape(World) + tm_fill(col = 'area')+
+  tm_borders()+
+  tm_bubbles(col = 'continent')
+
+tm_shape(World) + tm_fill(col = 'pop_est_dens')+
+  tm_borders()
+
+##brazil
+brazil <- World %>% 
+  filter(name == 'Brazil')
+
+tm_shape(brazil) + tm_fill()+
+  tm_borders()
+
+##combine data with covid
+data1 <- read_csv('train.csv')
+
+data1 <- data1 %>% 
+  group_by(Country_Region) %>% 
+  summarise(total_cases = max(ConfirmedCases))
+
+data2 <- World
+setdiff(unique(data1$Country_Region), unique(data2$name))
+
+data1$Country_Region[data1$Country_Region == 'US'] <- 'United States'
+data1$Country_Region[data1$Country_Region == 'South, Korea'] <- 'Korea'
+
+data2 <- data2 %>% 
+  rename(Country_Region = name)
+
+data2 <- data2 %>% left_join(data1)
+
+data2 <- data2 %>% 
+  mutate(
+    cases_100K = (total_cases / pop_est ) * 100000
+  )
+
+data2[data2$cases_100K > 400] <- 400
+
+tm_shape(data2) + tm_fill(col = 'total_cases')+
+  tm_borders()
+
+tm_shape(data2) + tm_fill(col = 'cases_100K')+
+  tm_borders()
+
+
+##Maps Brazil
+estados <- get_brmap(geo = 'State', class = 'sf')
+estados$nome <- str_to_lower(estados$nome)
+estados <- estados %>% 
+  rename(state = nome)
+
+tm_shape(estados) + tm_fill()+
+  tm_borders()
+
+##Import data covid
+data_cov <- read_csv('brazil_covid19.csv')
+data_cov$state <- str_to_lower(data_cov$state)
+
+data_cov <- data_cov %>% 
+  group_by(state) %>% 
+  summarise(cases = max(cases))
+
+estados <- estados %>% left_join(data_cov)
+
+tm_shape(estados) + tm_fill(col = 'cases')+
+  tm_borders()
