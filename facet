@@ -1,0 +1,72 @@
+library(tmap)
+library(tidyverse)
+library(sf)
+library(maps)
+
+#usa
+states <- st_as_sf(maps::map("state", plot = FALSE, fill = TRUE))
+head(states, 20)
+
+
+tm_shape(states) + tm_fill(col = 'ID')+
+  tm_borders()
+
+##Load Data
+borders <- read_csv('Border_Crossing_Entry_Data.csv')
+str(borders)
+
+borders <- borders %>% 
+  mutate(
+    state_name = fct_recode(State,
+                            'alaska' = 'AK',
+                            'arizona' = 'AZ',
+                            'california' = 'CA',
+                            'idaho' = 'ID',
+                            'maine' = 'ME',
+                            'michigan' = 'MI',
+                            'minnesota' = 'MN',
+                            'montana' = 'MT',
+                            'north dakota' = 'ND',
+                            'new mexico' = 'NM',
+                            'new york' = 'NY',
+                            'ohio' = 'OH',
+                            'texas' = 'TX',
+                            'vermont' = 'VT',
+                            'washington' = 'WA'
+                            ))
+
+borders <- borders %>% 
+  mutate(
+    Date = as.Date(Date, format = '%m/%d/%Y'),
+    decade = ifelse(Date < '2000-01-01', '1996-2000',
+                    ifelse(Date < '2005-01-01', '2000-2005',
+                           ifelse(Date < '2010-01-01', '2005-2010',
+                                  ifelse(Date < '2015-01-01', '2010-2015', '2015-2020'))))
+  )
+
+data2 <- borders %>% 
+  group_by(state_name, decade) %>% 
+  summarise(total = sum(Value))
+
+data2 <- data2 %>% rename(ID = state_name)
+states <- states %>% full_join(data2)
+
+
+
+tmap_mode('view')
+
+tm_shape(states) + tm_fill(col = 'total')+
+  tm_borders() +
+  tm_facets(by = 'decade')
+
+
+##Principal entrance
+borders %>% 
+  group_by(Measure) %>% 
+  summarise(total = sum(Value)) %>% 
+  ggplot(aes(reorder(Measure, total), total, fill = Measure))+
+  geom_col()+
+  coord_flip()+
+  theme_classic()+
+  theme(legend.position = '')
+
